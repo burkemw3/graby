@@ -15,6 +15,7 @@ use Readability\Readability;
 use Smalot\PdfParser\Parser as PdfParser;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use TrueBV\Punycode;
+use HeadlessChromium\BrowserFactory;
 
 /**
  * @todo add proxy
@@ -236,7 +237,20 @@ class Graby
 
         $this->logger->log('debug', 'Fetching url: {url}', ['url' => $url]);
 
-        $response = $this->httpClient->fetch($url, false, $siteConfig->http_header);
+        $browserFactory = new BrowserFactory('chromium-browser');
+        $browser = $browserFactory->createBrowser();
+        $page = $browser->createPage();
+        $page->navigate($url)->waitForNavigation();
+        sleep(5);
+        $evaluation = $page->evaluate('document.URL');
+        $effective_url = $evaluation->getReturnValue();
+        $evaluation = $page->evaluate('document.documentElement.innerHTML');
+        $body = $evaluation->getReturnValue();
+        $response = array(
+          'effective_url' => $evaluation,
+          'all_headers' => array(),
+          'body' => $body,
+        );
 
         $effectiveUrl = $response['effective_url'];
         $effectiveUrl = str_replace(' ', '%20', $effectiveUrl);
